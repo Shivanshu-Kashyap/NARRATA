@@ -1,6 +1,6 @@
-# Story-to-Screen
+# NARRATA
 
-Story-to-Screen is a platform that empowers storytellers to share their narratives and connect with the entertainment industry. The platform enables writers to showcase their stories, receive public feedback, and create opportunities for their stories to be adapted into various forms of visual entertainment.
+Narrata  is a platform that empowers storytellers to share their narratives and connect with the entertainment industry. The platform enables writers to showcase their stories, receive public feedback, and create opportunities for their stories to be adapted into various forms of visual entertainment.
 
 ## Features
 
