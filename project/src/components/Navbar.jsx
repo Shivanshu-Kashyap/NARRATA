@@ -48,7 +48,6 @@ function Navbar() {
               Write
             </Link>
           </div>
-
           {/* Right Side Actions */}
           <div className="hidden sm:flex sm:items-center space-x-4">
             {isLoggedIn ? (
@@ -74,7 +73,6 @@ function Navbar() {
               </>
             )}
           </div>
-
           {/* Mobile Menu Button */}
           <div className="flex items-center sm:hidden">
             <button

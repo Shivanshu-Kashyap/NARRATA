@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Logo from '../assets/NARRATA_LOGO.png'; // Import the logo
 
 function Footer() {
   return (
@@ -6,7 +7,7 @@ function Footer() {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900">Story-to-Screen</h3>
+            <img src={Logo} alt="Narrata Logo" className="h-20 w-auto" />
             <p className="text-gray-600">Every Story Deserves a Spotlight</p>
           </div>
           <div>
@@ -62,7 +63,7 @@ function Footer() {
         </div>
         <div className="mt-8 border-t border-gray-200 pt-8">
           <p className="text-base text-gray-400 text-center">
-            © {new Date().getFullYear()} Story-to-Screen. All rights reserved.
+            © {new Date().getFullYear()} NARRATA. All rights reserved.
           </p>
         </div>
       </div>
