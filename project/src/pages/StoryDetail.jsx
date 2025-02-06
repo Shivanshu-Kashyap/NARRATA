@@ -8,8 +8,10 @@ function StoryDetail() {
   const [userRating, setUserRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [hasRated, setHasRated] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
 
-  // This would normally come from an API
+  // Mock story data
   const story = {
     id: 1,
     title: "The Last Sunset",
@@ -18,9 +20,7 @@ function StoryDetail() {
     content: [
       {
         type: 'text',
-        content: `In the dying light of day, she realized everything was about to change. The sun painted the sky in brilliant hues of orange and pink, casting long shadows across the empty street. Sarah stood at her window, watching as the last rays of sunlight disappeared behind the horizon.
-
-        She had always loved this time of day, when the world seemed to pause between light and darkness. But today was different. The letter in her hand weighed heavily, its contents threatening to upend everything she had built over the last decade.`
+        content: `In the dying light of day, she realized everything was about to change. The sun painted the sky in brilliant hues of orange and pink, casting long shadows across the empty street.`
       },
       {
         type: 'image',
@@ -28,7 +28,7 @@ function StoryDetail() {
       },
       {
         type: 'text',
-        content: `The paper trembled slightly as she read it again, hoping somehow the words had changed. They hadn't. The development company was moving forward with their plans, and in three months, her beloved bookstore would be demolished to make way for a new high-rise.`
+        content: `The paper trembled slightly as she read it again, hoping somehow the words had changed.`
       }
     ],
     coverImage: "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?q=80&w=1920&auto=format&fit=crop",
@@ -40,56 +40,44 @@ function StoryDetail() {
   const handleRate = (rating) => {
     setUserRating(rating);
     setHasRated(true);
-    // Here you would normally send the rating to your backend
+  };
+
+  const handleAddComment = () => {
+    if (newComment.trim()) {
+      setComments([...comments, newComment]);
+      setNewComment("");
+    }
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Cover Image */}
         <div className="relative h-[400px]">
-          <img
-            src={story.coverImage}
-            alt={story.title}
-            className="w-full h-full object-cover"
-          />
+          <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-            <div className="inline-block bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full mb-4">
-              {story.genre}
-            </div>
             <h1 className="text-4xl font-bold mb-2">{story.title}</h1>
             <p className="text-lg opacity-90">by {story.author}</p>
           </div>
         </div>
 
-        {/* Story Content */}
         <div className="p-6 space-y-6">
           {story.content.map((segment, index) => (
             <div key={index}>
               {segment.type === 'text' ? (
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                  {segment.content}
-                </p>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{segment.content}</p>
               ) : (
                 <div className="relative h-96 my-8">
-                  <img
-                    src={segment.content}
-                    alt="Story illustration"
-                    className="w-full h-full object-cover rounded-lg"
-                  />
+                  <img src={segment.content} alt="Story illustration" className="w-full h-full object-cover rounded-lg" />
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Rating Section */}
         <div className="border-t border-gray-200 p-6">
           <div className="flex flex-col items-center space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {hasRated ? 'Thank you for rating!' : 'Rate this story'}
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900">{hasRated ? 'Thank you for rating!' : 'Rate this story'}</h3>
             <div className="flex items-center space-x-2">
               {[1, 2, 3, 4, 5].map((rating) => (
                 <button
@@ -108,9 +96,38 @@ function StoryDetail() {
                 </button>
               ))}
             </div>
-            <p className="text-sm text-gray-500">
-              Average rating: {story.rating} ({story.votes} votes)
-            </p>
+            <p className="text-sm text-gray-500">Average rating: {story.rating} ({story.votes} votes)</p>
+          </div>
+        </div>
+
+        {/* Comment Section */}
+        <div className="border-t border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Comments</h3>
+          <div className="space-y-4">
+            {comments.length > 0 ? (
+              comments.map((comment, index) => (
+                <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-sm">
+                  <p className="text-gray-800">{comment}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">No comments yet. Be the first to share your thoughts!</p>
+            )}
+          </div>
+          <div className="mt-6 flex items-center space-x-2">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Write a comment..."
+              className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              onClick={handleAddComment}
+              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600"
+            >
+              Post
+            </button>
           </div>
         </div>
       </div>
