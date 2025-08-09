@@ -1,23 +1,45 @@
 {
-  "name": "backend",
+  "name": "narrata-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "description": "Backend API for Narrata storytelling platform",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "build": "echo 'No build step required for Node.js backend'",
+    "test": "echo 'Tests not yet implemented'",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "format": "prettier --write src/**/*.js",
+    "db:seed": "node scripts/seedDatabase.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "storytelling",
+    "api",
+    "express",
+    "mongodb"
+  ],
+  "author": "Your Name",
   "license": "ISC",
-  "description": "",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cloudinary": "^2.5.1",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.7.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "dotenv": "^17.2.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.0.1",
     "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.9.6",
-    "multer": "^1.4.5-lts.1"
+    "mongoose": "^8.17.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.33.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2"
   }
 }
