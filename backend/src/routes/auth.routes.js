@@ -6,8 +6,6 @@ import {
   refreshAccessToken,
   changeCurrentPassword,
   getCurrentUser,
-  updateAccountDetails,
-  updateUserAvatar,
   deleteAccount,
   forgotPassword,
   resetPassword
@@ -34,14 +32,7 @@ router.route('/reset-password').post(resetPassword);
 router.route('/logout').post(verifyJWT, logoutUser);
 router.route('/change-password').post(verifyJWT, changeCurrentPassword);
 router.route('/current-user').get(verifyJWT, getCurrentUser);
-router.route('/update-account').patch(verifyJWT, updateAccountDetails);
-router.route('/avatar').patch(
-  verifyJWT,
-  cleanupFiles,
-  uploadAvatar,
-  handleMulterError,
-  updateUserAvatar
-);
+
 router.route('/delete-account').delete(verifyJWT, deleteAccount);
 
 export default router;

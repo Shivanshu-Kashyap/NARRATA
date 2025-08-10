@@ -25,7 +25,7 @@ router.route('/:commentId/replies').get(verifyOptionalJWT, getCommentReplies);
 // Protected routes - Comment management
 router.route('/create').post(
   verifyJWT, 
-  requireEmailVerification, 
+  // requireEmailVerification, 
   createComment
 );
 

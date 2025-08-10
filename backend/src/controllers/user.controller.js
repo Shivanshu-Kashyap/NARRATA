@@ -162,6 +162,62 @@ const getAllUsers = asyncHandler(async (req, res) => {
       }
     }, 'Users fetched successfully'));
 });
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, bio, location, website, socialLinks, preferences } = req.body;
+
+  const updateFields = {};
+
+  if (fullName?.trim()) updateFields.fullName = fullName.trim();
+  if (bio !== undefined) updateFields.bio = bio.trim();
+  if (location !== undefined) updateFields.location = location.trim();
+  if (website !== undefined) updateFields.website = website.trim();
+  if (socialLinks) updateFields.socialLinks = socialLinks;
+  if (preferences) updateFields.preferences = { ...req.user.preferences, ...preferences };
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: updateFields },
+    { new: true }
+  ).select('-password -refreshToken -emailVerificationToken -passwordResetToken');
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, 'Account details updated successfully'));
+});
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError(400, 'Avatar file is required');
+  }
+
+  // Upload new avatar
+  const avatarUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/avatars');
+
+  if (!avatarUploadResult) {
+    throw new ApiError(400, 'Error while uploading avatar');
+  }
+
+  // Delete old avatar if exists
+  if (req.user.avatar) {
+    const oldAvatarPublicId = extractPublicId(req.user.avatar);
+    if (oldAvatarPublicId) {
+      await deleteFromCloudinary(oldAvatarPublicId);
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatarUploadResult.secure_url
+      }
+    },
+    { new: true }
+  ).select('-password -refreshToken -emailVerificationToken -passwordResetToken');
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, 'Avatar updated successfully'));
+});
 
 const followUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
@@ -313,5 +369,7 @@ export {
   followUser,
   unfollowUser,
   getUserStats,
-  searchUsers
+  searchUsers,
+  updateAccountDetails,
+  updateUserAvatar  
 };

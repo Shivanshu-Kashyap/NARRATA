@@ -6,11 +6,23 @@ import {
   followUser,
   unfollowUser,
   getUserStats,
-  searchUsers
+  searchUsers,
+  updateAccountDetails, // Add this
+  updateUserAvatar      // Add this
 } from '../controllers/user.controller.js';
 import { verifyJWT, verifyOptionalJWT } from '../middlewares/auth.middleware.js';
+import { uploadAvatar, handleMulterError, cleanupFiles } from '../middlewares/multer.middleware.js';
 
 const router = Router();
+router.route('/account/update-details').patch(verifyJWT, updateAccountDetails);
+router.route('/account/update-avatar').patch(
+  verifyJWT,
+  cleanupFiles,
+  uploadAvatar,
+  handleMulterError,
+  updateUserAvatar
+);
+
 
 // Public routes
 router.route('/').get(getAllUsers);

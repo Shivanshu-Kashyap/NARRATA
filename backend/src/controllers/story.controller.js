@@ -3,125 +3,117 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { Story } from '../models/story.model.js';
 import { User } from '../models/user.model.js';
-import { LeaderboardEntry } from '../models/leaderboard.model.js';
 import { uploadOnCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinary.js';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, STORY_CATEGORIES, STORY_STATUS } from '../utils/constants.js';
 
 const createStory = asyncHandler(async (req, res) => {
-  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
+  if (!req.user?._id) {
+    throw new ApiError(401, "User not authenticated. Please log in to create a story.");
+  }
 
-  // Validation
-  if (!title?.trim()) {
-    throw new ApiError(400, 'Story title is required');
+  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
+
+  if (!title?.trim() || !content?.trim() || !category) {
+    throw new ApiError(400, 'Title, content, and category are required');
+  }
+
+  if (!STORY_CATEGORIES.includes(category)) {
+    throw new ApiError(400, 'A valid story category is required');
+  }
+
+  let coverImageUrl = null;
+  if (req.file) {
+    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
+    if (coverImageUploadResult) {
+      coverImageUrl = coverImageUploadResult.secure_url;
+    }
+  } else {
+    throw new ApiError(400, 'A cover image is required to create a story.');
   }
 
-  if (!content?.trim()) {
-    throw new ApiError(400, 'Story content is required');
-  }
+  const processedTags = tags ? 
+    tags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean) : [];
 
-  if (!category || !STORY_CATEGORIES.includes(category)) {
-    throw new ApiError(400, 'Valid story category is required');
-  }
+  // Create story
+  const story = await Story.create({
+    title: title.trim(),
+    content: content.trim(),
+    excerpt: excerpt?.trim(),
+    coverImage: coverImageUrl,
+    author: req.user._id,
+    category,
+    tags: processedTags,
+    // **FIX:** Explicitly set the status to 'published' on creation.
+    status: STORY_STATUS.PUBLISHED,
+    // **FIX:** Set the publication date.
+    publishedAt: new Date(),
+    metaTitle: metaTitle?.trim(),
+    metaDescription: metaDescription?.trim()
+  });
 
-  // Handle cover image upload
-  let coverImageUrl = null;
-  if (req.file) {
-    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
-    if (coverImageUploadResult) {
-      coverImageUrl = coverImageUploadResult.secure_url;
-    }
-  }
+  await User.findByIdAndUpdate(req.user._id, {
+    $inc: { 'stats.totalStories': 1 }
+  });
 
-  // Process tags
-  const processedTags = tags ? 
-    tags.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag.length > 0) : [];
+  const createdStory = await Story.findById(story._id)
+    .populate('author', 'username fullName avatar');
 
-  // Create story
-  const story = await Story.create({
-    title: title.trim(),
-    content: content.trim(),
-    excerpt: excerpt?.trim(),
-    coverImage: coverImageUrl,
-    author: req.user._id,
-    category,
-    tags: processedTags,
-    metaTitle: metaTitle?.trim(),
-    metaDescription: metaDescription?.trim()
-  });
-
-  // Update user stats
-  await User.findByIdAndUpdate(req.user._id, {
-    $inc: { 'stats.totalStories': 1 }
-  });
-
-  const createdStory = await Story.findById(story._id)
-    .populate('author', 'username fullName avatar');
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, createdStory, 'Story created successfully'));
+  return res
+    .status(201)
+    .json(new ApiResponse(201, createdStory, 'Story created successfully'));
 });
 
 const updateStory = asyncHandler(async (req, res) => {
-  const { storyId } = req.params;
-  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
+  const { storyId } = req.params;
+  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
 
-  if (!storyId) {
-    throw new ApiError(400, 'Story ID is required');
-  }
+  if (!storyId) {
+    throw new ApiError(400, 'Story ID is required');
+  }
 
-  const story = await Story.findById(storyId);
+  const story = await Story.findById(storyId);
 
-  if (!story) {
-    throw new ApiError(404, 'Story not found');
-  }
+  if (!story) {
+    throw new ApiError(404, 'Story not found');
+  }
 
-  // Check ownership
-  if (story.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-    throw new ApiError(403, 'You can only update your own stories');
-  }
+  if (story.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    throw new ApiError(403, 'You can only update your own stories');
+  }
 
-  // Prepare update fields
-  const updateFields = {};
+  const updateFields = {};
+  if (title?.trim()) updateFields.title = title.trim();
+  if (content?.trim()) updateFields.content = content.trim();
+  if (excerpt !== undefined) updateFields.excerpt = excerpt?.trim();
+  if (category && STORY_CATEGORIES.includes(category)) updateFields.category = category;
+  if (metaTitle !== undefined) updateFields.metaTitle = metaTitle?.trim();
+  if (metaDescription !== undefined) updateFields.metaDescription = metaDescription?.trim();
 
-  if (title?.trim()) updateFields.title = title.trim();
-  if (content?.trim()) updateFields.content = content.trim();
-  if (excerpt !== undefined) updateFields.excerpt = excerpt?.trim();
-  if (category && STORY_CATEGORIES.includes(category)) updateFields.category = category;
-  if (metaTitle !== undefined) updateFields.metaTitle = metaTitle?.trim();
-  if (metaDescription !== undefined) updateFields.metaDescription = metaDescription?.trim();
+  if (tags !== undefined) {
+    updateFields.tags = tags ? 
+      tags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean) : [];
+  }
 
-  // Process tags
-  if (tags !== undefined) {
-    updateFields.tags = tags ? 
-      tags.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag.length > 0) : [];
-  }
+  if (req.file) {
+    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
+    if (coverImageUploadResult) {
+      if (story.coverImage) {
+        const oldImagePublicId = extractPublicId(story.coverImage);
+        if (oldImagePublicId) await deleteFromCloudinary(oldImagePublicId);
+      }
+      updateFields.coverImage = coverImageUploadResult.secure_url;
+    }
+  }
 
-  // Handle cover image update
-  if (req.file) {
-    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
-    
-    if (coverImageUploadResult) {
-      // Delete old cover image
-      if (story.coverImage) {
-        const oldImagePublicId = extractPublicId(story.coverImage);
-        if (oldImagePublicId) {
-          await deleteFromCloudinary(oldImagePublicId);
-        }
-      }
-      updateFields.coverImage = coverImageUploadResult.secure_url;
-    }
-  }
+  const updatedStory = await Story.findByIdAndUpdate(
+    storyId,
+    { $set: updateFields },
+    { new: true, runValidators: true }
+  ).populate('author', 'username fullName avatar');
 
-  const updatedStory = await Story.findByIdAndUpdate(
-    storyId,
-    { $set: updateFields },
-    { new: true, runValidators: true }
-  ).populate('author', 'username fullName avatar');
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedStory, 'Story updated successfully'));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedStory, 'Story updated successfully'));
 });
 
 const deleteStory = asyncHandler(async (req, res) => {

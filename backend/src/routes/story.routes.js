@@ -36,7 +36,7 @@ router.route('/:storyId/related').get(getRelatedStories);
 // Protected routes - Create story
 router.route('/create').post(
   verifyJWT,
-  requireEmailVerification,
+  // requireEmailVerification,
   cleanupFiles,
   uploadCoverImage,
   handleMulterError,
