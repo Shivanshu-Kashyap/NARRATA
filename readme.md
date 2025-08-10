@@ -284,10 +284,6 @@ npm run lint       # Run ESLint
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - [React](https://reactjs.org) - Frontend framework
@@ -298,8 +294,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-For support, email support@narrata.com or create an issue in this repository.
+For support, email shivanshukashyap996@gmail.com or create an issue in this repository.
 
 ***
 
-**Made with ❤️ by the Narrata Team**
+**Made with ❤️ by the Shivanshu Kashyap**
