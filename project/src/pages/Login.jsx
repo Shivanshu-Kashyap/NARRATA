@@ -18,7 +18,7 @@ function Login() {
   const location = useLocation();
 
   // Get the page user was trying to access before login
-  const from = location.state?.from?.pathname || '/dashboard';
+  const from = location.state?.from?.pathname || '/';
 
   const validateForm = () => {
     const newErrors = {};

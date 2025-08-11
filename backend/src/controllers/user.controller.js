@@ -5,6 +5,11 @@ import { User } from '../models/user.model.js';
 import { Story } from '../models/story.model.js';
 import { LeaderboardEntry } from '../models/leaderboard.model.js';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../utils/constants.js';
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+  extractPublicId,
+} from '../utils/cloudinary.js';
 
 const getUserProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
@@ -220,53 +225,97 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const followUser = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
 
-  if (!userId) {
-    throw new ApiError(400, 'User ID is required');
-  }
+    if (userId === currentUserId.toString()) {
+        throw new ApiError(400, 'You cannot follow yourself');
+    }
 
-  if (userId === req.user._id.toString()) {
-    throw new ApiError(400, 'You cannot follow yourself');
-  }
+    const userToFollow = await User.findById(userId);
 
-  const userToFollow = await User.findById(userId);
+    if (!userToFollow || !userToFollow.isActive) {
+        throw new ApiError(404, 'User not found');
+    }
 
-  if (!userToFollow || !userToFollow.isActive) {
-    throw new ApiError(404, 'User not found');
-  }
+    // Use Promise.all to update both users concurrently
+    const [followedUser, currentUser] = await Promise.all([
+        // Add current user's ID to the other user's followers list
+        // and increment their follower count. $addToSet prevents duplicates.
+        User.findByIdAndUpdate(
+            userId,
+            {
+                $addToSet: { followers: currentUserId },
+                $inc: { 'stats.followerCount': 1 },
+            },
+            { new: true }
+        ),
+        // Add the other user's ID to the current user's following list
+        // and increment their following count.
+        User.findByIdAndUpdate(
+            currentUserId,
+            {
+                $addToSet: { following: userId },
+                $inc: { 'stats.followingCount': 1 },
+            },
+            { new: true }
+        ),
+    ]);
 
-  // Check if already following
-  // Note: You'll need to implement a Follow model or add followers/following arrays to User model
-  // For now, let's assume we have followers/following arrays in User model
+    if (!followedUser || !currentUser) {
+        throw new ApiError(500, "Failed to complete follow action");
+    }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, 'User followed successfully'));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { followerCount: followedUser.stats.followerCount }, 'User followed successfully'));
 });
 
 const unfollowUser = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
+    const { userId } = req.params;
+    const currentUserId = req.user._id;
 
-  if (!userId) {
-    throw new ApiError(400, 'User ID is required');
-  }
+    if (userId === currentUserId.toString()) {
+        throw new ApiError(400, 'You cannot unfollow yourself');
+    }
 
-  if (userId === req.user._id.toString()) {
-    throw new ApiError(400, 'You cannot unfollow yourself');
-  }
+    const userToUnfollow = await User.findById(userId);
 
-  const userToUnfollow = await User.findById(userId);
+    if (!userToUnfollow || !userToUnfollow.isActive) {
+        throw new ApiError(404, 'User not found');
+    }
+    
+    // Use Promise.all to update both users concurrently
+    const [unfollowedUser, currentUser] = await Promise.all([
+        // Remove current user's ID from the other user's followers list
+        // and decrement their follower count.
+        User.findByIdAndUpdate(
+            userId,
+            {
+                $pull: { followers: currentUserId },
+                $inc: { 'stats.followerCount': -1 },
+            },
+            { new: true }
+        ),
+        // Remove the other user's ID from the current user's following list
+        // and decrement their following count.
+        User.findByIdAndUpdate(
+            currentUserId,
+            {
+                $pull: { following: userId },
+                $inc: { 'stats.followingCount': -1 },
+            },
+            { new: true }
+        ),
+    ]);
+    
+    if (!unfollowedUser || !currentUser) {
+        throw new ApiError(500, "Failed to complete unfollow action");
+    }
 
-  if (!userToUnfollow || !userToUnfollow.isActive) {
-    throw new ApiError(404, 'User not found');
-  }
-
-  // Implement unfollow logic here
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, 'User unfollowed successfully'));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, { followerCount: unfollowedUser.stats.followerCount }, 'User unfollowed successfully'));
 });
 
 const getUserStats = asyncHandler(async (req, res) => {

@@ -21,10 +21,11 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/stories" element={<Stories />} />
-              <Route path="/story/:id" element={<StoryDetail />} />
+              <Route path="/story/:slug" element={<StoryDetail />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/write" element={<WriteStory />} />
+               <Route path="/edit-story/:slug" element={<WriteStory />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
             </Routes>

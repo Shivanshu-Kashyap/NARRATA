@@ -152,6 +152,13 @@ class ApiService {
     });
   }
 
+async updateUserAvatar(formData) {
+    return this.multipartRequest('/users/account/update-avatar', {
+      method: 'PATCH',
+      body: formData,
+    });
+  }
+
   // --- STORY ENDPOINTS ---
   async getAllStories(params) {
     const queryString = params ? `?${params.toString()}` : '';
@@ -167,6 +174,21 @@ class ApiService {
     return this.multipartRequest('/stories/create', {
       method: 'POST',
       body: formData,
+    });
+  }
+
+// **NEW:** Method to update an existing story
+  async updateStory(storyId, formData) {
+    return this.multipartRequest(`/stories/${storyId}`, {
+      method: 'PATCH',
+      body: formData,
+    });
+  }
+
+  // **NEW:** Method to delete a story
+  async deleteStory(storyId) {
+    return this.request(`/stories/${storyId}`, {
+      method: 'DELETE',
     });
   }
 

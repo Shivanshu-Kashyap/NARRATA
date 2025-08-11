@@ -1,111 +1,88 @@
+// src/utils/cloudinary.js
+
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
+import dotenv from 'dotenv';
 
-// Configure Cloudinary
+// **FIX:** Explicitly load the .env file from within this module.
+// This ensures that the environment variables are 100% available
+// before the cloudinary.config() function is called.
+dotenv.config({ path: './.env' });
+
+// Configure Cloudinary using environment variables.
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true // It's good practice to enforce HTTPS
 });
 
 const uploadOnCloudinary = async (localFilePath, folder = 'narrata') => {
-  try {
-    if (!localFilePath) return null;
+  try {
+    if (!localFilePath) return null;
 
-    // Upload the file to Cloudinary
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: 'auto',
-      folder: folder,
-      transformation: [
-        { quality: 'auto' },
-        { fetch_format: 'auto' }
-      ]
-    });
+    // The check for credentials is still a good safeguard.
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error("Cloudinary credentials are not configured. Please verify your .env file.");
+      fs.unlinkSync(localFilePath);
+      return null;
+    }
 
-    // File has been uploaded successfully
-    // Remove the locally saved temporary file
-    fs.unlinkSync(localFilePath);
+    // Upload the file to Cloudinary.
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: 'auto',
+      folder: folder,
+    });
+
+    // Clean up the local temporary file after a successful upload.
+    fs.unlinkSync(localFilePath);
+    return response;
+
+  } catch (error) {
+    console.error('--- CLOUDINARY UPLOAD FAILED ---');
+    console.error(`Error details: ${error.message}`);
+    console.error('---------------------------------');
     
-    return response;
-  } catch (error) {
-    // Remove the locally saved temporary file as the upload operation failed
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
-    }
-    console.error('Cloudinary upload error:', error);
-    return null;
-  }
+    // Clean up the local file if the upload fails.
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
+    return null;
+  }
 };
 
-const deleteFromCloudinary = async (publicId) => {
-  try {
-    if (!publicId) return null;
+// --- NO CHANGES NEEDED FOR THE REST OF THE FILE ---
 
-    const response = await cloudinary.uploader.destroy(publicId);
-    return response;
-  } catch (error) {
-    console.error('Cloudinary delete error:', error);
-    return null;
-  }
+const deleteFromCloudinary = async (publicId) => {
+  try {
+    if (!publicId) return null;
+    const response = await cloudinary.uploader.destroy(publicId);
+    return response;
+  } catch (error) {
+    console.error('Cloudinary delete error:', error);
+    return null;
+  }
 };
 
 const extractPublicId = (cloudinaryUrl) => {
-  try {
-    if (!cloudinaryUrl) return null;
-    
-    // Extract public_id from Cloudinary URL
-    const parts = cloudinaryUrl.split('/');
-    const filename = parts[parts.length - 1];
-    const publicId = filename.split('.')[0];
-    
-    // Include folder path if exists
-    const folderIndex = parts.indexOf('narrata');
-    if (folderIndex !== -1) {
-      return parts.slice(folderIndex).join('/').replace(/\.[^/.]+$/, '');
-    }
-    
-    return publicId;
-  } catch (error) {
-    console.error('Error extracting public ID:', error);
-    return null;
-  }
-};
-
-const optimizeImageUrl = (cloudinaryUrl, options = {}) => {
-  try {
-    if (!cloudinaryUrl) return null;
-
-    const {
-      width = 'auto',
-      height = 'auto',
-      crop = 'fill',
-      quality = 'auto',
-      format = 'auto'
-    } = options;
-
-    // Insert transformation parameters into the URL
-    const transformationString = `w_${width},h_${height},c_${crop},q_${quality},f_${format}`;
-    const uploadIndex = cloudinaryUrl.indexOf('/upload/');
-    
-    if (uploadIndex !== -1) {
-      return [
-        cloudinaryUrl.slice(0, uploadIndex + 8),
-        transformationString + '/',
-        cloudinaryUrl.slice(uploadIndex + 8)
-      ].join('');
-    }
-
-    return cloudinaryUrl;
-  } catch (error) {
-    console.error('Error optimizing image URL:', error);
-    return cloudinaryUrl;
-  }
+  try {
+    if (!cloudinaryUrl) return null;
+    const parts = cloudinaryUrl.split('/');
+    const folderIndex = parts.indexOf('narrata');
+    if (folderIndex !== -1) {
+      return parts.slice(folderIndex).join('/').replace(/\.[^/.]+$/, '');
+    }
+    const filename = parts[parts.length - 1];
+    return filename.split('.')[0];
+  } catch (error) {
+    console.error('Error extracting public ID:', error);
+    return null;
+  }
 };
 
 export {
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-  extractPublicId,
-  optimizeImageUrl,
-  cloudinary
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+  extractPublicId,
+  cloudinary
 };

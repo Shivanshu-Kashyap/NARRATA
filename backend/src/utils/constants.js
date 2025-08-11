@@ -38,7 +38,7 @@ export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 50;
 
 export const FILE_TYPES = {
-  IMAGE: ['image/jpeg', 'image/png', 'image/webp'],
+  IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'],
   DOCUMENT: ['application/pdf', 'text/plain'],
 };
 
