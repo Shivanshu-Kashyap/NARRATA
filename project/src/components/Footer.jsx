@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import Logo from '../assets/NARRATA_LOGO.png'; // Import the logo
+import Logo from '../assets/NARRATA__LOGO.png'; // Import the logo
 
 function Footer() {
   return (

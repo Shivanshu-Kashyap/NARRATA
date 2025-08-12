@@ -203,6 +203,15 @@ async updateUserAvatar(formData) {
       body: JSON.stringify(commentData),
     });
   }
+
+// Method to fetch the leaderboard data
+  async getLeaderboard(params) {
+    const queryString = params ? `?${params.toString()}` : '';
+    return this.request(`/leaderboard${queryString}`);
+  }
+
 }
+
+
 
 export default new ApiService();

@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 // Make sure you have a logo file at this path or replace it.
- import Logo from '../assets/NARRATA_LOGO.png'; 
+ import Logo from '../assets/NARRATA__LOGO.png'; 
 
 function Navbar() {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
