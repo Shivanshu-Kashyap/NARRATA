@@ -192,6 +192,16 @@ async updateUserAvatar(formData) {
     });
   }
 
+// **NEW:** Method to like a story
+  async likeStory(storyId) {
+    return this.request(`/stories/${storyId}/like`, { method: 'POST' });
+  }
+  // **NEW:** Method to dislike a story
+  async dislikeStory(storyId) {
+    return this.request(`/stories/${storyId}/dislike`, { method: 'POST' });
+  }
+
+
   // --- COMMENT ENDPOINTS ---
   async getStoryComments(storyId) {
     return this.request(`/comments/story/${storyId}`);

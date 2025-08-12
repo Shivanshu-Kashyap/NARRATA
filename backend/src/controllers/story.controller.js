@@ -167,7 +167,7 @@ const getStoryBySlug = asyncHandler(async (req, res) => {
   }
 
   const story = await Story.findOne({ slug, status: 'published' })
-    .populate('author', 'username fullName avatar bio location stats');
+    .populate('author', 'username fullName avatar bio location stats followers');
 
   if (!story) {
     throw new ApiError(404, 'Story not found');
