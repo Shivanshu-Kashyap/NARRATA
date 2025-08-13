@@ -24,7 +24,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc:["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://narrata.vercel.app"],
       fontSrc: ["'self'", "https:"]
     }
   }
@@ -38,7 +38,8 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:5174',
       'http://127.0.0.1:3000',
-      'http://127.0.0.1:5174'
+      'http://127.0.0.1:5174',
+      'https://narrata-seven.vercel.app',
     ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
