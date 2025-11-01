@@ -274,8 +274,15 @@ leaderboardEntrySchema.statics.getTopUsers = async function (limit = 10, timefra
     default:
       sortBy = { totalScore: -1 };
   }
-  
-  return this.find({ isActive: true })
+  // Only include users who have at least one published story.
+  // This prevents newly created leaderboard entries (e.g. from registration)
+  // from appearing on top when they haven't published yet.
+  const Story = mongoose.model('Story');
+  const authorsWithPublished = await Story.distinct('author', { status: 'published' });
+
+  if (!authorsWithPublished || authorsWithPublished.length === 0) return [];
+
+  return this.find({ isActive: true, user: { $in: authorsWithPublished } })
     .populate('user', 'username fullName avatar stats')
     .sort(sortBy)
     .limit(limit)

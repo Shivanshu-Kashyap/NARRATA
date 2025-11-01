@@ -1,71 +1,95 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import mongoose from 'mongoose';
 import { Story } from '../models/story.model.js';
 import { User } from '../models/user.model.js';
+import { LeaderboardEntry } from '../models/leaderboard.model.js';
 import { uploadOnCloudinary, deleteFromCloudinary, extractPublicId } from '../utils/cloudinary.js';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, STORY_CATEGORIES, STORY_STATUS } from '../utils/constants.js';
 
 const createStory = asyncHandler(async (req, res) => {
-  if (!req.user?._id) {
-    throw new ApiError(401, "User not authenticated. Please log in to create a story.");
-  }
-
-  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
-
-  if (!title?.trim() || !content?.trim() || !category) {
-    throw new ApiError(400, 'Title, content, and category are required');
-  }
-
-  if (!STORY_CATEGORIES.includes(category)) {
-    throw new ApiError(400, 'A valid story category is required');
-  }
-
-  let coverImageUrl = null;
-  if (req.file) {
-    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
-    if (coverImageUploadResult) {
-      coverImageUrl = coverImageUploadResult.secure_url;
-    }
-  } else {
-    throw new ApiError(400, 'A cover image is required to create a story.');
+  if (!req.user?._id) {
+    throw new ApiError(401, "User not authenticated. Please log in to create a story.");
   }
 
-  const processedTags = tags ? 
-    tags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean) : [];
+  const { title, content, excerpt, category, tags, metaTitle, metaDescription, status } = req.body;
 
-  // Create story
-  const story = await Story.create({
-    title: title.trim(),
-    content: content.trim(),
-    excerpt: excerpt?.trim(),
-    coverImage: coverImageUrl,
-    author: req.user._id,
-    category,
-    tags: processedTags,
-    // **FIX:** Explicitly set the status to 'published' on creation.
-    status: STORY_STATUS.PUBLISHED,
-    // **FIX:** Set the publication date.
-    publishedAt: new Date(),
-    metaTitle: metaTitle?.trim(),
-    metaDescription: metaDescription?.trim()
-  });
+  if (!title?.trim() || !content?.trim() || !category) {
+    throw new ApiError(400, 'Title, content, and category are required');
+  }
 
-  await User.findByIdAndUpdate(req.user._id, {
-    $inc: { 'stats.totalStories': 1 }
-  });
+  if (!STORY_CATEGORIES.includes(category)) {
+    throw new ApiError(400, 'A valid story category is required');
+  }
 
-  const createdStory = await Story.findById(story._id)
-    .populate('author', 'username fullName avatar');
+  // Allow creating drafts without a cover image. If publishing, require a cover image.
+  let coverImageUrl = null;
+  if (req.file) {
+    const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
+    if (coverImageUploadResult) {
+      coverImageUrl = coverImageUploadResult.secure_url;
+    }
+  }
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, createdStory, 'Story created successfully'));
+  const processedTags = tags ? 
+    tags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean) : [];
+
+  const willPublish = (status || '').toLowerCase() === STORY_STATUS.PUBLISHED || status === STORY_STATUS.PUBLISHED;
+
+  if (willPublish && !coverImageUrl) {
+    throw new ApiError(400, 'A cover image is required to publish a story. You can save as draft without a cover image.');
+  }
+
+  // Create story (respect draft vs published)
+  const story = await Story.create({
+    title: title.trim(),
+    content: content.trim(),
+    excerpt: excerpt?.trim(),
+    coverImage: coverImageUrl,
+    author: req.user._id,
+    category,
+    tags: processedTags,
+    status: willPublish ? STORY_STATUS.PUBLISHED : STORY_STATUS.DRAFT,
+    publishedAt: willPublish ? new Date() : null,
+    settings: {
+      draft: !willPublish
+    },
+    metaTitle: metaTitle?.trim(),
+    metaDescription: metaDescription?.trim()
+  });
+
+  // Increment user's total stories count (includes drafts)
+  await User.findByIdAndUpdate(req.user._id, {
+    $inc: { 'stats.totalStories': 1 }
+  });
+
+  // If the story was published immediately, ensure a leaderboard entry exists and recalc score
+  if (willPublish) {
+    // create or update leaderboard entry
+    let leaderboardEntry = await LeaderboardEntry.findOne({ user: req.user._id });
+    if (!leaderboardEntry) {
+      leaderboardEntry = await LeaderboardEntry.create({ user: req.user._id });
+    } else {
+      // reactivate if previously deactivated
+      leaderboardEntry.isActive = true;
+      await leaderboardEntry.save({ validateBeforeSave: false });
+    }
+    // Recalculate score based on published stories
+    await leaderboardEntry.calculateScore();
+  }
+
+  const createdStory = await Story.findById(story._id)
+    .populate('author', 'username fullName avatar');
+
+  return res
+    .status(201)
+    .json(new ApiResponse(201, createdStory, willPublish ? 'Story published successfully' : 'Draft saved successfully'));
 });
 
 const updateStory = asyncHandler(async (req, res) => {
   const { storyId } = req.params;
-  const { title, content, excerpt, category, tags, metaTitle, metaDescription } = req.body;
+  const { title, content, excerpt, category, tags, metaTitle, metaDescription, status } = req.body;
 
   if (!storyId) {
     throw new ApiError(400, 'Story ID is required');
@@ -94,6 +118,29 @@ const updateStory = asyncHandler(async (req, res) => {
       tags.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean) : [];
   }
 
+  // Handle status provided in update: prepare fields for publish/unpublish
+  if (status !== undefined) {
+    const s = (status || '').toLowerCase();
+    if (s === STORY_STATUS.PUBLISHED) {
+      // Ensure there's a cover image either already set or being uploaded
+      if (!req.file && !story.coverImage && !updateFields.coverImage) {
+        throw new ApiError(400, 'A cover image is required to publish a story.');
+      }
+      updateFields.status = STORY_STATUS.PUBLISHED;
+      updateFields.publishedAt = new Date();
+      updateFields['settings.draft'] = false;
+    } else if (s === STORY_STATUS.DRAFT) {
+      updateFields.status = STORY_STATUS.DRAFT;
+      updateFields.publishedAt = null;
+      updateFields['settings.draft'] = true;
+    }
+  }
+
+  // Handle status change requested via update (publish/unpublish)
+  const requestedStatus = (status || '').toLowerCase();
+  const willPublish = requestedStatus === STORY_STATUS.PUBLISHED;
+  const willUnpublish = requestedStatus === STORY_STATUS.DRAFT;
+
   if (req.file) {
     const coverImageUploadResult = await uploadOnCloudinary(req.file.path, 'narrata/covers');
     if (coverImageUploadResult) {
@@ -111,9 +158,46 @@ const updateStory = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   ).populate('author', 'username fullName avatar');
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, updatedStory, 'Story updated successfully'));
+  // If status changed to published via update, ensure leaderboard entry exists and recalc score
+  if (willPublish && updatedStory.status !== STORY_STATUS.PUBLISHED) {
+    await updatedStory.publish();
+    try {
+      let leaderboardEntry = await LeaderboardEntry.findOne({ user: updatedStory.author });
+      if (!leaderboardEntry) {
+        leaderboardEntry = await LeaderboardEntry.create({ user: updatedStory.author });
+      } else {
+        leaderboardEntry.isActive = true;
+        await leaderboardEntry.save({ validateBeforeSave: false });
+      }
+      await leaderboardEntry.calculateScore();
+    } catch (err) {
+      console.error('Error updating leaderboard after publish (update):', err);
+    }
+  }
+
+  // If status changed to draft/unpublished via update, unpublish and recalc leaderboard
+  if (willUnpublish && updatedStory.status === STORY_STATUS.PUBLISHED) {
+    await updatedStory.unpublish();
+    try {
+      let leaderboardEntry = await LeaderboardEntry.findOne({ user: updatedStory.author });
+      if (leaderboardEntry) {
+        await leaderboardEntry.calculateScore();
+        // Deactivate if user has no published stories
+        const StoryModel = mongoose.model('Story');
+        const publishedCount = await StoryModel.countDocuments({ author: updatedStory.author, status: STORY_STATUS.PUBLISHED });
+        if (publishedCount === 0) {
+          leaderboardEntry.isActive = false;
+          await leaderboardEntry.save({ validateBeforeSave: false });
+        }
+      }
+    } catch (err) {
+      console.error('Error updating leaderboard after unpublish (update):', err);
+    }
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedStory, 'Story updated successfully'));
 });
 
 const deleteStory = asyncHandler(async (req, res) => {
@@ -293,6 +377,20 @@ const publishStory = asyncHandler(async (req, res) => {
   }
 
   await story.publish();
+  // Ensure leaderboard entry exists and recalculate score after publish
+  try {
+    let leaderboardEntry = await LeaderboardEntry.findOne({ user: story.author });
+    if (!leaderboardEntry) {
+      leaderboardEntry = await LeaderboardEntry.create({ user: story.author });
+    } else {
+      leaderboardEntry.isActive = true;
+      await leaderboardEntry.save({ validateBeforeSave: false });
+    }
+    await leaderboardEntry.calculateScore();
+  } catch (err) {
+    // Do not block response on leaderboard errors, but log for debugging
+    console.error('Error updating leaderboard after publish:', err);
+  }
 
   return res
     .status(200)
@@ -322,6 +420,20 @@ const unpublishStory = asyncHandler(async (req, res) => {
   }
 
   await story.unpublish();
+  // After unpublishing, update leaderboard for the author
+  try {
+    let leaderboardEntry = await LeaderboardEntry.findOne({ user: story.author });
+    if (leaderboardEntry) {
+      await leaderboardEntry.calculateScore();
+      const publishedCount = await mongoose.model('Story').countDocuments({ author: story.author, status: STORY_STATUS.PUBLISHED });
+      if (publishedCount === 0) {
+        leaderboardEntry.isActive = false;
+        await leaderboardEntry.save({ validateBeforeSave: false });
+      }
+    }
+  } catch (err) {
+    console.error('Error updating leaderboard after unpublish:', err);
+  }
 
   return res
     .status(200)

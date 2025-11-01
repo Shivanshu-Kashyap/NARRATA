@@ -93,7 +93,8 @@ function Profile() {
       // Fetch stories
       try {
         setError(null);
-        const response = await apiService.request(`/users/${user.username}/stories`);
+  // When viewing own profile, request all stories including drafts
+  const response = await apiService.request(`/users/${user.username}/stories?status=all`);
         if (!mountedRef.current) return;
         setStories(response?.stories || []);
       } catch (err) {

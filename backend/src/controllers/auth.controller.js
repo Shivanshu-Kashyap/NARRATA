@@ -60,10 +60,9 @@ const registerUser = asyncHandler(async (req, res) => {
     website: website?.trim() || ''
   });
 
-  // Create leaderboard entry
-  await LeaderboardEntry.create({
-    user: user._id
-  });
+  // NOTE: don't create a leaderboard entry at registration time.
+  // Leaderboard entries are created when the user publishes their first story
+  // to avoid showing new users on top of the leaderboard before they contribute.
 
   // Get created user without sensitive data
   const createdUser = await User.findById(user._id).select(

@@ -51,42 +51,56 @@ function WriteStory() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title || !category || !content) {
-      setError('Please fill out all required fields.');
-      return;
-    }
-    if (!isEditMode && !coverImageFile) {
-      setError('A cover image is required for a new story.');
+  const handleSubmit = async (e, publish = true) => {
+    e && e.preventDefault();
+
+    if (!title || !category || !content) {
+      setError('Please fill out all required fields.');
       return;
     }
-    
-    setIsSubmitting(true);
-    setError('');
 
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('category', category);
-    formData.append('content', content);
-    if (coverImageFile) {
+    const willPublish = publish;
+
+    // If publishing, require a cover for new stories
+    if (!isEditMode && willPublish && !coverImageFile) {
+      setError('A cover image is required to publish a new story. You can save a draft without a cover image.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('category', category);
+    formData.append('content', content);
+    // send status explicitly
+    formData.append('status', willPublish ? 'published' : 'draft');
+    if (coverImageFile) {
       formData.append('coverImage', coverImageFile);
     }
-    
-    try {
+
+    try {
       let resultStory;
       if (isEditMode) {
         resultStory = await apiService.updateStory(storyId, formData);
       } else {
         resultStory = await apiService.createStory(formData);
       }
-      navigate(`/story/${resultStory.slug}`);
-    } catch (err) {
-      setError(err.message || 'Failed to save story. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+
+      // Navigate: published stories go to their public page, drafts return to editor
+      if (willPublish) {
+        navigate(`/story/${resultStory.slug}`);
+      } else {
+        // go to the write page for this draft (to continue editing)
+        navigate(`/write/${resultStory.slug}`);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to save story. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -134,11 +148,14 @@ function WriteStory() {
             ></textarea>
           </div>
           {error && <div className="text-red-600 text-center bg-red-50 p-3 rounded-md">{error}</div>}
-          <div className="flex justify-end">
-            <button type="submit" className="btn-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Publish Story')}
-            </button>
-          </div>
+          <div className="flex justify-end space-x-3">
+            <button type="button" onClick={(e) => handleSubmit(e, false)} className="btn-secondary" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (isEditMode ? 'Save as Draft' : 'Save Draft')}
+            </button>
+            <button type="button" onClick={(e) => handleSubmit(e, true)} className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : (isEditMode ? 'Save & Publish' : 'Publish Story')}
+            </button>
+          </div>
         </form>
       </div>
     </div>
