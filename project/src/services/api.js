@@ -215,10 +215,60 @@ async updateUserAvatar(formData) {
   }
 
 // Method to fetch the leaderboard data
-  async getLeaderboard(params) {
-    const queryString = params ? `?${params.toString()}` : '';
-    return this.request(`/leaderboard${queryString}`);
-  }
+  async getLeaderboard(params) {
+    const queryString = params ? `?${params.toString()}` : '';
+    return this.request(`/leaderboard${queryString}`);
+  }
+
+  // --- AI ENDPOINTS ---
+  
+  // Improve text using AI
+  async improveText(text, context = 'general') {
+    return this.request('/ai/improve-text', {
+      method: 'POST',
+      body: JSON.stringify({ text, context }),
+    });
+  }
+
+  // Continue story using AI
+  async continueStory(text, tone = 'dramatic') {
+    return this.request('/ai/continue-story', {
+      method: 'POST',
+      body: JSON.stringify({ text, tone }),
+    });
+  }
+
+  // Get writing suggestions
+  async getSuggestions(text, type = 'plot') {
+    return this.request('/ai/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ text, type }),
+    });
+  }
+
+  // Check grammar
+  async checkGrammar(text) {
+    return this.request('/ai/check-grammar', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  // Generate cover image
+  async generateCover(title, excerpt, category, style = 'realistic') {
+    return this.request('/ai/generate-cover', {
+      method: 'POST',
+      body: JSON.stringify({ title, excerpt, category, style }),
+    });
+  }
+
+  // Analyze story
+  async analyzeStory(text) {
+    return this.request('/ai/analyze-story', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  }
 
 }
 

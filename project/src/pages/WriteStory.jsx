@@ -1,9 +1,11 @@
 // src/pages/WriteStory.jsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PhotoIcon } from '@heroicons/react/24/outline';
 import apiService from '../services/api';
+import AIAssistant from '../components/AIAssistant';
+import AICoverGenerator from '../components/AICoverGenerator';
 
 const STORY_CATEGORIES = [
   'Fiction', 'Non-Fiction', 'Romance', 'Thriller', 'Mystery', 
@@ -12,20 +14,19 @@ const STORY_CATEGORIES = [
 ];
 
 function WriteStory() {
-  const { slug } = useParams();
+  const { slug } = useParams();
   const isEditMode = Boolean(slug);
-  const navigate = useNavigate();
+  const navigate = useNavigate();
+  const contentRef = useRef(null);
 
-  const [storyId, setStoryId] = useState(null);
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
-  const [content, setContent] = useState('');
-  const [coverImageFile, setCoverImageFile] = useState(null);
-  const [coverImagePreview, setCoverImagePreview] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
+  const [storyId, setStoryId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [content, setContent] = useState('');
+  const [coverImageFile, setCoverImageFile] = useState(null);
+  const [coverImagePreview, setCoverImagePreview] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');  useEffect(() => {
     if (isEditMode) {
       const fetchStoryData = async () => {
         try {
@@ -43,15 +44,52 @@ function WriteStory() {
     }
   }, [slug, isEditMode]);
 
-  const handleCoverImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setCoverImageFile(file);
-      setCoverImagePreview(URL.createObjectURL(file));
-    }
-  };
+  const handleCoverImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCoverImageFile(file);
+      setCoverImagePreview(URL.createObjectURL(file));
+    }
+  };
 
-  const handleSubmit = async (e, publish = true) => {
+  // AI Assistant handlers
+  const handleInsertText = (text) => {
+    // Insert text at cursor position or append
+    const textarea = contentRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.substring(0, start) + '\n\n' + text + '\n\n' + content.substring(end);
+      setContent(newContent);
+      
+      // Set cursor position after inserted text
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + text.length + 4;
+        textarea.focus();
+      }, 0);
+    } else {
+      setContent(content + '\n\n' + text);
+    }
+  };
+
+  const handleReplaceText = (oldText, newText) => {
+    setContent(content.replace(oldText, newText));
+  };
+
+  // AI Cover Generator handler
+  const handleAICoverGenerated = async (coverUrl) => {
+    setCoverImagePreview(coverUrl);
+    
+    // Fetch the image and convert to file for upload
+    try {
+      const response = await fetch(coverUrl);
+      const blob = await response.blob();
+      const file = new File([blob], 'ai-cover.png', { type: 'image/png' });
+      setCoverImageFile(file);
+    } catch (err) {
+      console.error('Error converting AI cover to file:', err);
+    }
+  };  const handleSubmit = async (e, publish = true) => {
     e && e.preventDefault();
 
     if (!title || !category || !content) {
@@ -122,6 +160,14 @@ function WriteStory() {
               )}
               <input type="file" accept="image/*" onChange={handleCoverImageChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
             </div>
+            <div className="mt-3 flex justify-center">
+              <AICoverGenerator
+                storyTitle={title}
+                storyExcerpt={content.substring(0, 200)}
+                category={category}
+                onCoverGenerated={handleAICoverGenerated}
+              />
+            </div>
           </div>
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
@@ -137,10 +183,11 @@ function WriteStory() {
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content</label>
             <textarea
+              ref={contentRef}
               id="content"
               name="content"
               rows="15"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
               placeholder="Begin your story here..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -156,10 +203,17 @@ function WriteStory() {
               {isSubmitting ? 'Saving...' : (isEditMode ? 'Save & Publish' : 'Publish Story')}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
-  );
+        </form>
+      </div>
+
+      {/* AI Writing Assistant */}
+      <AIAssistant
+        content={content}
+        onInsertText={handleInsertText}
+        onReplaceText={handleReplaceText}
+      />
+    </div>
+  );
 }
 
 export default WriteStory;

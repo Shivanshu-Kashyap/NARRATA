@@ -13,6 +13,7 @@ import userRoutes from './routes/user.routes.js';
 import storyRoutes from './routes/story.routes.js';
 import commentRoutes from './routes/comment.routes.js';
 import leaderboardRoutes from './routes/leaderboard.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 
 const app = express();
 
@@ -160,6 +161,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/stories', storyRoutes);
 app.use('/api/v1/comments', commentRoutes);
 app.use('/api/v1/leaderboard', leaderboardRoutes);
+app.use('/api/v1/ai', aiRoutes);
 
 // Catch-all route for undefined API endpoints
 app.all('/api/*', (req, res, next) => {
